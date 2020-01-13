@@ -4,6 +4,7 @@ import lombok.Data;
 
 import javax.persistence.*;
 
+
 @Data
 @Entity
 @Table(name = "room")
@@ -31,4 +32,8 @@ public class Room {
      */
     @Column(name = "max_player",nullable = false)
     private Integer maxPlayer;
+
+
+    public Room(String s, Integer userId, Integer maxPlayer) {
+    }
 }

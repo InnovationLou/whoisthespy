@@ -18,7 +18,7 @@ public class GameUser {
      * 游戏id
      */
     @Column(name = "user_id")
-    private String userId;
+    private Integer userId;
 
     /**
      * 游戏昵称
@@ -38,4 +38,21 @@ public class GameUser {
     @Column(name = "score")
     private Integer score;
 
+    /**
+     * 处于哪个房间，若为null，未在游戏中
+     */
+    @Column(name = "in_room")
+    private Integer inRoom;
+
+    /**
+     * 是否准备
+     */
+    @Column(name = "is_ready")
+    private Boolean isReady;
+
+    /**
+     * 是否生存
+     */
+    @Column(name = "is_alive")
+    private Boolean isAlive;
 }
