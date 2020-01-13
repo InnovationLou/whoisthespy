@@ -24,9 +24,16 @@ public class GameUserServiceImpl implements GameUserService {
     }
 
     @Override
-    public ResponseVO createRoom(Integer userId,Integer maxPlayer) {
+    public Room createRoom(Integer userId,Integer maxPlayer) {
         String userName=resp.findGameUserByUserId(userId).getUserName();
-        Room room=new Room("欢迎加入"+userName+"的房间",userId,maxPlayer);
-        return ControllerUtil.getDataResult(roomRepository.save(room));
+        Room room=new Room(new Integer(1),"欢迎加入"+userName+"的房间",userId,maxPlayer);
+        roomRepository.save(room);
+        return room;
+    }
+
+    @Override
+    public String getUserNameById(Integer userId) {
+        String userName=resp.findGameUserByUserId(userId).getUserName();
+        return userName;
     }
 }

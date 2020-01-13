@@ -3,6 +3,8 @@ package com.lck.whoisthespy.controller;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.lck.whoisthespy.entity.CommuMsg;
+import com.lck.whoisthespy.entity.Room;
+import com.lck.whoisthespy.repository.GameUserRepository;
 import com.lck.whoisthespy.service.GameUserService;
 import com.lck.whoisthespy.util.CacheModel;
 import com.lck.whoisthespy.util.ControllerUtil;
@@ -35,8 +37,19 @@ public class WebSocketServer {
     //自定义缓存模型<String,Object>
     private static CacheModel cacheModel;
 
+    /**
+     * 直接注入将出现空指针异常
+     * Autowired是单例模式
+     * 而WebSocket是多实例模式。
+     * 使用静态注入
+     */
     @Autowired
-    GameUserService gameUserService;
+    private static GameUserService gameUserService;
+
+    @Autowired
+    public void setChatService(GameUserService gameUserService) {
+        WebSocketServer.gameUserService=gameUserService;
+    }
 
     /**
      * ****************************************************************************************
@@ -72,16 +85,20 @@ public class WebSocketServer {
 
         JSONObject obj=JSON.parseObject(message);
         String head=obj.getString("head");
-        String msg=obj.getString("msg");
-        sendMessage(ControllerUtil.getDataResult(new CommuMsg("test","啦啦啦连接成功")).toString());
+        JSONObject msg=obj.getJSONObject("msg");
+        //sendMessage(ControllerUtil.getDataResult(new CommuMsg("test","啦啦啦连接成功")).toString());
         //vote(head, msg);
 
         switch (head){
             case "IMhost":
-                Integer userId=Integer.parseInt(JSON.parseObject(msg).getString("userId"));
-                Integer maxPlayer=Integer.parseInt(JSON.parseObject(msg).getString("maxPlayer"));
-                gameUserService.createRoom(userId,maxPlayer);
+                Integer userId=Integer.parseInt(msg.getString("userId"));
+                Integer maxPlayer=Integer.parseInt(msg.getString("maxPlayer"));
+                String userName=gameUserService.getUserNameById(userId);
+                Room room=new Room(new Integer(1),"欢迎加入"+userName+"的房间",userId,maxPlayer);
 
+                CacheModel.putObj("room"+userId,room);
+                logger.info(room+"创建成功");
+                sendMessage(ControllerUtil.getDataResult(new CommuMsg("createSuccess", (JSONObject) JSON.toJSON(room))).toString());
                 break;
             case "IMplayer":
                 break;

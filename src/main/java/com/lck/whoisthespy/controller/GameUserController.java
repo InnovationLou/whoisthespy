@@ -22,7 +22,7 @@ public class GameUserController {
         return gameUserService.getAllGameUser();
     }
 
-    @ApiOperation("创建房间")
-    @PutMapping("/room")
-    public ResponseVO createRoom(Integer userId,Integer maxPlayer){return gameUserService.createRoom(userId,maxPlayer);}
+//    @ApiOperation("创建房间")
+//    @PutMapping("/room")
+//    public ResponseVO createRoom(Integer userId,Integer maxPlayer){return gameUserService.createRoom(userId,maxPlayer);}
 }

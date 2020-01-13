@@ -1,19 +1,23 @@
 package com.lck.whoisthespy.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 
 
 @Data
+@NoArgsConstructor                 //无参构造
+@AllArgsConstructor                //有参构造
 @Entity
 @Table(name = "room")
 public class Room {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id",nullable = false)
-    private int id;
+    private Integer id;
 
     /**
      * 房间名
@@ -34,6 +38,4 @@ public class Room {
     private Integer maxPlayer;
 
 
-    public Room(String s, Integer userId, Integer maxPlayer) {
-    }
 }
