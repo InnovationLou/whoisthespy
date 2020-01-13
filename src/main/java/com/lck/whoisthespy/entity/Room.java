@@ -11,15 +11,24 @@ public class Room {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id")
+    @Column(name = "id",nullable = false)
     private int id;
 
+    /**
+     * 房间名
+     */
     @Column(name = "room_name")
     private String roomName;
 
-    @Column(name = "host_id")
+    /**
+     * 房主id
+     */
+    @Column(name = "host_id",nullable = false)
     private Integer hostId;
 
-    @Column(name = "player_num")
-    private Integer playerNum;
+    /**
+     * 房间人数上限
+     */
+    @Column(name = "max_player",nullable = false)
+    private Integer maxPlayer;
 }
