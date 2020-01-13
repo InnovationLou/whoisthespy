@@ -18,7 +18,7 @@ public class GameUser {
      * 游戏id
      */
     @Column(name = "user_id")
-    private Integer userId;
+    private String userId;
 
     /**
      * 游戏昵称
