@@ -2,6 +2,7 @@ package com.lck.whoisthespy.util;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class CacheModel {
 
@@ -19,5 +20,8 @@ public class CacheModel {
         }
         map.put(key,object);
         return true;
+    }
+    public synchronized static Set<Map.Entry<String, Object>> entrySet(){
+        return map.entrySet();
     }
 }

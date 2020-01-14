@@ -1,6 +1,7 @@
 package com.lck.whoisthespy.controller;
 
 import com.lck.whoisthespy.service.GameUserService;
+import com.lck.whoisthespy.service.RoomService;
 import com.lck.whoisthespy.vo.ResponseVO;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,10 +17,19 @@ public class GameUserController {
     @Autowired
     GameUserService gameUserService;
 
+    @Autowired
+    RoomService roomService;
+
     @ApiOperation("获取所有游戏玩家")
     @GetMapping("")
     public ResponseVO getAllGameUser(){
         return gameUserService.getAllGameUser();
+    }
+
+    @ApiOperation("浏览所有房间")
+    @GetMapping("/room")
+    public ResponseVO getAllRoom(){
+        return roomService.getAllRoom();
     }
 
 //    @ApiOperation("创建房间")

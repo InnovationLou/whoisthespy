@@ -91,19 +91,25 @@ public class WebSocketServer {
 
         switch (head){
             case "IMhost":
+                //尚未显示房间当前加入人数
                 Integer userId=Integer.parseInt(msg.getString("userId"));
                 Integer maxPlayer=Integer.parseInt(msg.getString("maxPlayer"));
                 String userName=gameUserService.getUserNameById(userId);
                 Room room=new Room(new Integer(1),"欢迎加入"+userName+"的房间",userId,maxPlayer);
-
                 CacheModel.putObj("room"+userId,room);
                 logger.info(room+"创建成功");
                 sendMessage(ControllerUtil.getDataResult(new CommuMsg("createSuccess", (JSONObject) JSON.toJSON(room))).toString());
                 break;
             case "IMplayer":
+                userId=Integer.parseInt(msg.getString("userId"));
+                Integer roomId=Integer.parseInt(msg.getString("roomId"));
+                //Integer hostId=Integer.parseInt(msg.getString("hostId"));
+                Room playerRoom= (Room) CacheModel.getValue("room"+userId);
+
                 break;
             case "getReady":
                 break;
+                
             default:
         }
     }
