@@ -156,11 +156,13 @@ public class WebSocketServer {
             Map<Integer,Integer> votedNumMap=new HashMap<>();
             Map<GameUser,String> playerWordMap=new HashMap<>();
             for (GameUser player: round.getAlivePlayer()){
-                votedNumMap.put(Integer.parseInt(player.getGameNo()),null);
+                votedNumMap.put(Integer.parseInt(player.getGameNo()),0);
                 //这里从数据库获取词汇
                 playerWordMap.put(player,"词汇1");
+                player.setIsSpy(false);
                 if(player.getGameNo().equals(2)){
                     playerWordMap.put(player,"卧底词");
+                    player.setIsSpy(true);
                 }
             }
             round.setVotedNumMap(votedNumMap);
@@ -190,8 +192,52 @@ public class WebSocketServer {
 
         if(head.equals("vote")){
             String roomKey=msg.getString("roomKey");
-            String gameNo=msg.getString("gameNo");
-            String content=msg.getString("content");
+            //String gameNo=msg.getString("gameNo");
+            String voteMsg=msg.getString("voteMsg");
+            Room room=CacheModel.getRoom(roomKey);
+            GameRound round=CacheModel.getGameRoundByRoomKey(roomKey);
+            Set<String> voteInfo=round.getVoteInfo();
+            voteInfo.add(voteMsg);
+            sendMessage("received"+voteMsg);
+
+            //收到所有玩家投票,解析set，计算结果
+            if(voteInfo.size()==round.getAlivePlayer().size()){
+                Map<Integer, Integer> map = round.getVotedNumMap();
+                for(String s:voteInfo){
+                    Integer my=Integer.parseInt(voteMsg.split("\\|")[0]);
+                    Integer target=Integer.parseInt(voteMsg.split("\\|")[1]);
+                    map.put(target,map.get(target)+1);
+                }
+                Integer maxVotedPlayer = null;
+                Integer maxVotedNum=0;
+                //求出最大投票数
+                for (Map.Entry<Integer,Integer> entry:map.entrySet()) {
+                    if (entry.getValue()>maxVotedNum){
+                        maxVotedNum=entry.getValue();
+                        maxVotedPlayer=entry.getKey();
+                    }
+                }
+                round.setDeadPlyaer(maxVotedPlayer);
+                List<GameUser> players=  round.getAlivePlayer();
+                for(GameUser player: players){
+                    if(Integer.valueOf(player.getGameNo())==maxVotedPlayer){
+                        players.remove(player);
+                        //玩家死亡
+                        player.setIsAlive(false);
+                    }
+                }
+                Queue<GameUser> queue=round.getSpeakQueue();
+                for(GameUser player:queue){
+                    if(player.getGameNo().equals(String.valueOf(maxVotedPlayer))){
+                        queue.remove(player);
+                    }
+                }
+
+                //此处还需要判断游戏是否结束，场上存活人数，被淘汰的玩家是否为卧底
+                //返回投票结果,前端可以准备下一轮的speak
+                sendInRoomPlayersMessage(room,new CommuMsg("voteResult",maxVotedPlayer+":"+maxVotedNum));
+                sendInRoomPlayersMessage(room,new CommuMsg("nextRoundSpeakQueue",round.getSpeakQueue()));
+            }
         }
     }
 

@@ -38,7 +38,7 @@ public class GameRound {
     private String currentSpeakPlayer;
 
     /**
-     * 存活玩家列表
+     * 存活玩家列表ArrayList
      */
     private List<GameUser> alivePlayer;
 
@@ -51,10 +51,11 @@ public class GameRound {
     /**
      * 对局结束时淘汰的玩家
      */
-    private GameUser deadPlyaer;
+    private Integer deadPlyaer;
 
     /**
-     * 计票
+     * 计票:
+     * 几号，被投几票
      */
     private Map<Integer,Integer> votedNumMap;
 

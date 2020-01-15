@@ -51,6 +51,11 @@ public class GameUser {
     private String roomKey;
 
     /**
+     * 是否卧底
+     */
+    @Column(name = "is_Spy")
+    private Boolean isSpy;
+    /**
      * 是否准备
      */
     @Column(name = "is_ready")
