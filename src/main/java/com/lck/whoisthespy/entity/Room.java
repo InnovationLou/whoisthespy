@@ -1,41 +1,56 @@
 package com.lck.whoisthespy.entity;
 
+import com.lck.whoisthespy.entity.about.GameRound;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.util.ArrayList;
 
 
 @Data
 @NoArgsConstructor                 //无参构造
 @AllArgsConstructor                //有参构造
-@Entity
-@Table(name = "room")
 public class Room {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id",nullable = false)
-    private Integer id;
+    /**
+     * 房间key
+     */
+    private String roomKey;
 
     /**
      * 房间名
      */
-    @Column(name = "room_name")
     private String roomName;
 
     /**
      * 房主id
      */
-    @Column(name = "host_id",nullable = false)
     private Integer hostId;
 
     /**
      * 房间人数上限
      */
-    @Column(name = "max_player",nullable = false)
     private Integer maxPlayer;
 
+    /**
+     * 玩家列表
+     */
+    private ArrayList<GameUser> players;
 
+    /**
+     * 房间人数
+     */
+    private Integer playerNum;
+
+    /**
+     * 该房间游戏是否开始
+     */
+    private Boolean gameStatus;
+
+    /**
+     * 对局信息
+     */
+    private GameRound gameRound;
 }

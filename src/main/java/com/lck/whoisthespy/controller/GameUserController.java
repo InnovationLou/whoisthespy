@@ -26,11 +26,11 @@ public class GameUserController {
         return gameUserService.getAllGameUser();
     }
 
-    @ApiOperation("浏览所有房间")
-    @GetMapping("/room")
-    public ResponseVO getAllRoom(){
-        return roomService.getAllRoom();
-    }
+//    @ApiOperation("浏览所有房间")
+//    @GetMapping("/room")
+//    public ResponseVO getAllRoom(){
+//        return roomService.getAllRoom();
+//    }
 
 //    @ApiOperation("创建房间")
 //    @PutMapping("/room")

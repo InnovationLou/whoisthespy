@@ -3,7 +3,9 @@ package com.lck.whoisthespy.controller;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.lck.whoisthespy.entity.CommuMsg;
+import com.lck.whoisthespy.entity.GameUser;
 import com.lck.whoisthespy.entity.Room;
+import com.lck.whoisthespy.entity.about.GameRound;
 import com.lck.whoisthespy.repository.GameUserRepository;
 import com.lck.whoisthespy.service.GameUserService;
 import com.lck.whoisthespy.util.CacheModel;
@@ -13,12 +15,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import sun.misc.Cache;
 
 import javax.websocket.*;
 import javax.websocket.Session;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
 
 @ServerEndpoint("/game/{userId}")
 @Component
@@ -89,31 +94,133 @@ public class WebSocketServer {
         //sendMessage(ControllerUtil.getDataResult(new CommuMsg("test","啦啦啦连接成功")).toString());
         //vote(head, msg);
 
-        switch (head){
-            case "IMhost":
-                //尚未显示房间当前加入人数
-                Integer userId=Integer.parseInt(msg.getString("userId"));
-                Integer maxPlayer=Integer.parseInt(msg.getString("maxPlayer"));
-                String userName=gameUserService.getUserNameById(userId);
-                Room room=new Room(new Integer(1),"欢迎加入"+userName+"的房间",userId,maxPlayer);
-                CacheModel.putObj("room"+userId,room);
-                logger.info(room+"创建成功");
-                sendMessage(ControllerUtil.getDataResult(new CommuMsg("createSuccess", (JSONObject) JSON.toJSON(room))).toString());
-                break;
-            case "IMplayer":
-                userId=Integer.parseInt(msg.getString("userId"));
-                Integer roomId=Integer.parseInt(msg.getString("roomId"));
-                //Integer hostId=Integer.parseInt(msg.getString("hostId"));
-                Room playerRoom= (Room) CacheModel.getValue("room"+userId);
+        if(head.equals("IMhost")){
+            Integer userId=Integer.parseInt(msg.getString("userId"));
+            Integer maxPlayer=Integer.parseInt(msg.getString("maxPlayer"));
+            String userName=msg.getString("userName");
 
-                break;
-            case "getReady":
-                break;
-                
-            default:
+            //new 房间
+            Room room=new Room("room"+userId,"欢迎加入"+userName+"的房间",userId,maxPlayer,new ArrayList<>(),0,false,new GameRound());
+            room.getPlayers().add(new GameUser(userId,userName,"1","room"+userId,true));
+            room.setPlayerNum(room.getPlayerNum()+1);
+            CacheModel.putRoom("room"+userId,room);
+            logger.info(room+"创建成功");
+            CommuMsg commuMsg=new CommuMsg("createSuccess", room);
+            sendMessage(JSON.toJSONString(commuMsg));
+        }
+        if(head.equals("IMplayer")){
+            Integer userId=Integer.parseInt(msg.getString("userId"));
+            //Integer roomId=Integer.parseInt(msg.getString("roomId"));
+            String userName=msg.getString("userName");
+            Integer hostId=Integer.parseInt(msg.getString("hostId"));
+            Room room= (Room) CacheModel.getRoom("room"+hostId);
+            String playerNo= String.valueOf(room.getPlayerNum()+1);
+            GameUser player=new GameUser(userId,userName,playerNo,"room"+hostId,false);
+            room.getPlayers().add(player);
+            CacheModel.saveRoom("room"+hostId,room);
+            logger.info("加入房间:room"+hostId+"成功");
+            sendMessage(JSON.toJSONString(new CommuMsg("joinSuccess",player)));
+
+            sendInRoomPlayersMessage(CacheModel.getRoom("room"+hostId),CacheModel.getRoom("room"+hostId).getPlayers());
+
+        }
+
+        if(head.equals("getReady")){
+            String roomKey=msg.getString("roomKey");
+            Integer userId=Integer.parseInt(msg.getString("userId"));
+            String playerNo=msg.getString("playerNo");
+            //准备就绪
+            Room room=CacheModel.getRoom(roomKey);
+            GameUser player=room.getPlayers().get(Integer.parseInt(playerNo));
+            player.setIsReady(true);
+            CacheModel.saveRoom(roomKey,room);
+            sendMessage(JSON.toJSONString(new CommuMsg("ReadyOK", JSON.toJSONString(player))));
+            sendInRoomPlayersMessage(CacheModel.getRoom(roomKey),CacheModel.getRoom(roomKey));
+        }
+
+        if(head.equals("startGame")){
+            String roomKey=msg.getString("roomKey");
+            //Integer hostId=Integer.parseInt(msg.getString("hostId"));
+            Room room=CacheModel.getRoom(roomKey);
+            room.setGameStatus(true);
+            //初始化房间对局信息
+            GameRound round=room.getGameRound();
+            round.setAlivePlayer(room.getPlayers());
+            round.setRoomKey(roomKey);
+            round.setRound(1);
+            //发言队列
+            round.setSpeakQueue(new LinkedList<>(round.getAlivePlayer()));
+            //设置第一个人发言
+            round.setCurrentSpeakPlayer(round.getSpeakQueue().element().getGameNo());
+            round.setVoteInfo(new HashSet<>());
+            Map<Integer,Integer> votedNumMap=new HashMap<>();
+            Map<GameUser,String> playerWordMap=new HashMap<>();
+            for (GameUser player: round.getAlivePlayer()){
+                votedNumMap.put(Integer.parseInt(player.getGameNo()),null);
+                //这里从数据库获取词汇
+                playerWordMap.put(player,"词汇1");
+                if(player.getGameNo().equals(2)){
+                    playerWordMap.put(player,"卧底词");
+                }
+            }
+            round.setVotedNumMap(votedNumMap);
+
+            round.setPlayerWordMap(playerWordMap);
+            CacheModel.saveRoom(roomKey,room);
+            //sendMessage(ControllerUtil.getDataResult(new CommuMsg("GameStartedOK", JSON.toJSONString("游戏开始"))).toString());
+            sendMessage("即将开始游戏");
+            //暂时全部信息发送，可以根据房间内的玩家单独发送
+            //各玩家均可以拿到词汇和发言顺序
+            sendInRoomPlayersMessage(CacheModel.getRoom(roomKey),CacheModel.getRoom(roomKey).getGameRound());
+        }
+
+        if(head.equals("speak")){
+            String roomKey=msg.getString("roomKey");
+            String gameNo=msg.getString("gameNo");
+            String content=msg.getString("content");
+            Room room=CacheModel.getRoom(roomKey);
+            GameRound round=room.getGameRound();
+            sendInRoomPlayersMessage(room,new CommuMsg("playerSpeak",gameNo+"说："+content));
+            round.getSpeakQueue().poll();
+            round.setCurrentSpeakPlayer(round.getSpeakQueue().element().getGameNo());
+            //round.setSpeakQueue();
+            //发给前端下一轮发言的玩家号
+            sendInRoomPlayersMessage(room,new CommuMsg("playerSpeakOK",round.getCurrentSpeakPlayer()));
+        }
+
+        if(head.equals("vote")){
+            String roomKey=msg.getString("roomKey");
+            String gameNo=msg.getString("gameNo");
+            String content=msg.getString("content");
         }
     }
 
+
+    /**
+     * 发送给处于room中所有玩家 obj的信息
+     * @param room
+     * @param obj
+     */
+    private void sendInRoomPlayersMessage(Room room,Object obj) {
+
+        List<GameUser> players=room.getPlayers();
+        List<Integer> userList=new ArrayList<>();
+
+        for(GameUser p:players){
+            userList.add(p.getUserId());
+        }
+
+            for(Map.Entry<Integer, WebSocketServer> entry:
+                    webSocketMap.entrySet()) {
+                for(Integer i:userList){
+                    if(entry.getKey().equals(i)){
+                        //sendMessage();
+                        entry.getValue().session.getAsyncRemote().sendText(JSON.toJSONString(new CommuMsg("roomBroadcast", obj)));
+                    }
+                }
+            }
+
+    }
 //    private void vote(String head, String msg) {
 //        if(head.equals("voteInfo")){
 //            //投票信息,head="voteInfo"

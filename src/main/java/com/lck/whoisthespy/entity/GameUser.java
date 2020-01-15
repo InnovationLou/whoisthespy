@@ -10,7 +10,7 @@ import javax.persistence.*;
 public class GameUser {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Integer id;
 
@@ -27,6 +27,11 @@ public class GameUser {
     private String userName;
 
     /**
+     * 游戏编号
+     */
+    private String gameNo;
+
+    /**
      * 头像
      */
     @Column(name = "icon")
@@ -39,10 +44,11 @@ public class GameUser {
     private Integer score;
 
     /**
+     * roomKey
      * 处于哪个房间，若为null，未在游戏中
      */
-    @Column(name = "in_room")
-    private Integer inRoom;
+    @Column(name = "room_key")
+    private String roomKey;
 
     /**
      * 是否准备
@@ -55,4 +61,14 @@ public class GameUser {
      */
     @Column(name = "is_alive")
     private Boolean isAlive;
+
+
+    //创建房间构造
+    public GameUser(Integer userId, String userName, String gameNo, String roomKey, Boolean isReady) {
+        this.userId=userId;
+        this.userName=userName;
+        this.gameNo=gameNo;
+        this.roomKey=roomKey;
+        this.isReady=isReady;
+    }
 }

@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor                //有参构造
 public class CommuMsg {
     private String head;
-    private JSONObject msg;
+    private Object msg;
 
 }
