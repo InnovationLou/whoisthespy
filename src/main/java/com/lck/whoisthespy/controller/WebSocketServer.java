@@ -115,27 +115,49 @@ public class WebSocketServer {
             Integer hostId=Integer.parseInt(msg.getString("hostId"));
             Room room= (Room) CacheModel.getRoom("room"+hostId);
             String playerNo= String.valueOf(room.getPlayerNum()+1);
+            room.setPlayerNum(room.getPlayerNum()+1);
             GameUser player=new GameUser(userId,userName,playerNo,"room"+hostId,false);
             room.getPlayers().add(player);
-            CacheModel.saveRoom("room"+hostId,room);
             logger.info("加入房间:room"+hostId+"成功");
+            logger.info(room.getPlayers().toString());
             sendMessage(JSON.toJSONString(new CommuMsg("joinSuccess",player)));
-
-            sendInRoomPlayersMessage(CacheModel.getRoom("room"+hostId),CacheModel.getRoom("room"+hostId).getPlayers());
-
+            //缺房主id：uncheck
+            sendInRoomPlayersMessage(room,"playerJoinOK",room.getPlayers());
         }
 
         if(head.equals("getReady")){
             String roomKey=msg.getString("roomKey");
-            Integer userId=Integer.parseInt(msg.getString("userId"));
-            String playerNo=msg.getString("playerNo");
+            //Integer userId=Integer.parseInt(msg.getString("userId"));
+            String gameNo=msg.getString("gameNo");
             //准备就绪
             Room room=CacheModel.getRoom(roomKey);
-            GameUser player=room.getPlayers().get(Integer.parseInt(playerNo));
-            player.setIsReady(true);
+            //得不到player:check
+            for (GameUser player:
+                 room.getPlayers()) {
+                if(player.getGameNo().equals(gameNo)){
+                    player.setIsReady(true);
+                }
+            }
+//            GameUser player=room.getPlayers().get(Integer.parseInt(gameNo)-1);
+//            player.setIsReady(true);
             CacheModel.saveRoom(roomKey,room);
-            sendMessage(JSON.toJSONString(new CommuMsg("ReadyOK", JSON.toJSONString(player))));
-            sendInRoomPlayersMessage(CacheModel.getRoom(roomKey),CacheModel.getRoom(roomKey));
+            //sendMessage(JSON.toJSONString(new CommuMsg("readyOK", JSON.toJSONString(CacheModel.getRoom(roomKey).getPlayers()))));
+            sendInRoomPlayersMessage(room,"readyOK",room.getPlayers());
+            //sendInRoomPlayersMessage(CacheModel.getRoom(roomKey),CacheModel.getRoom(roomKey));
+        }
+
+        if (head.equals("readyCancel")){
+            String roomKey=msg.getString("roomKey");
+            String gameNo=msg.getString("gameNo");
+
+            Room room=CacheModel.getRoom(roomKey);
+            ArrayList<GameUser> players=room.getPlayers();
+            for (GameUser player:players){
+                if(player.getGameNo().equals(gameNo)){
+                    player.setIsReady(false);
+                }
+            }
+            sendInRoomPlayersMessage(room,"cancelReadyOK",room.getPlayers());
         }
 
         if(head.equals("startGame")){
@@ -154,26 +176,31 @@ public class WebSocketServer {
             round.setCurrentSpeakPlayer(round.getSpeakQueue().element().getGameNo());
             round.setVoteInfo(new HashSet<>());
             Map<Integer,Integer> votedNumMap=new HashMap<>();
-            Map<GameUser,String> playerWordMap=new HashMap<>();
+            Map<String,String> playerWordMap=new HashMap<>();
             for (GameUser player: round.getAlivePlayer()){
                 votedNumMap.put(Integer.parseInt(player.getGameNo()),0);
                 //这里从数据库获取词汇
-                playerWordMap.put(player,"词汇1");
+                playerWordMap.put(player.getGameNo(),"词汇1");
                 player.setIsSpy(false);
-                if(player.getGameNo().equals(2)){
-                    playerWordMap.put(player,"卧底词");
+                if(player.getGameNo().equals("2")){
+                    playerWordMap.put(player.getGameNo(),"卧底词");
+                    //标记该玩家为卧底
                     player.setIsSpy(true);
                 }
             }
+            logger.info(JSON.toJSONString(playerWordMap));
+
             round.setVotedNumMap(votedNumMap);
 
             round.setPlayerWordMap(playerWordMap);
             CacheModel.saveRoom(roomKey,room);
             //sendMessage(ControllerUtil.getDataResult(new CommuMsg("GameStartedOK", JSON.toJSONString("游戏开始"))).toString());
-            sendMessage("即将开始游戏");
+            logger.info("即将开始游戏");
             //暂时全部信息发送，可以根据房间内的玩家单独发送
             //各玩家均可以拿到词汇和发言顺序
-            sendInRoomPlayersMessage(CacheModel.getRoom(roomKey),CacheModel.getRoom(roomKey).getGameRound());
+            sendInRoomPlayersMessage(CacheModel.getRoom(roomKey),"GAMESTARTED",CacheModel.getRoom(roomKey).getGameRound().getCurrentSpeakPlayer());
+            sendInRoomPlayersMessage(room,"playerList",room.getGameRound().getAlivePlayer());
+            sendInRoomPlayersMessage(room,"playerWordKey",room.getGameRound().getPlayerWordMap());
         }
 
         if(head.equals("speak")){
@@ -182,12 +209,19 @@ public class WebSocketServer {
             String content=msg.getString("content");
             Room room=CacheModel.getRoom(roomKey);
             GameRound round=room.getGameRound();
-            sendInRoomPlayersMessage(room,new CommuMsg("playerSpeak",gameNo+"说："+content));
             round.getSpeakQueue().poll();
             round.setCurrentSpeakPlayer(round.getSpeakQueue().element().getGameNo());
             //round.setSpeakQueue();
             //发给前端下一轮发言的玩家号
-            sendInRoomPlayersMessage(room,new CommuMsg("playerSpeakOK",round.getCurrentSpeakPlayer()));
+
+            //假设所有人发言完毕
+            round.setCurrentSpeakPlayer(null);
+
+            sendMessage(JSON.toJSONString(new CommuMsg("beforeVote",round.getAlivePlayer())));
+
+            sendInRoomPlayersMessage(room,"playerSpeakOK",round.getCurrentSpeakPlayer());
+
+            sendInRoomPlayersMessage(room,"playerSpeak",gameNo+"说："+content);
         }
 
         if(head.equals("vote")){
@@ -196,9 +230,10 @@ public class WebSocketServer {
             String voteMsg=msg.getString("voteMsg");
             Room room=CacheModel.getRoom(roomKey);
             GameRound round=CacheModel.getGameRoundByRoomKey(roomKey);
+
             Set<String> voteInfo=round.getVoteInfo();
             voteInfo.add(voteMsg);
-            sendMessage("received"+voteMsg);
+            logger.info("received"+voteMsg);
 
             //收到所有玩家投票,解析set，计算结果
             if(voteInfo.size()==round.getAlivePlayer().size()){
@@ -224,6 +259,12 @@ public class WebSocketServer {
                         players.remove(player);
                         //玩家死亡
                         player.setIsAlive(false);
+                        if(player.getIsSpy()==true){
+                            //游戏结束,civilian胜利
+                            room.setGameStatus(false);
+                            sendInRoomPlayersMessage(room,"spyVotedOUT",room.getPlayers());
+                            sendInRoomPlayersMessage(room,"gameResult","win:civilian");
+                        }
                     }
                 }
                 Queue<GameUser> queue=round.getSpeakQueue();
@@ -233,21 +274,33 @@ public class WebSocketServer {
                     }
                 }
 
-                //此处还需要判断游戏是否结束，场上存活人数，被淘汰的玩家是否为卧底
-                //返回投票结果,前端可以准备下一轮的speak
-                sendInRoomPlayersMessage(room,new CommuMsg("voteResult",maxVotedPlayer+":"+maxVotedNum));
-                sendInRoomPlayersMessage(room,new CommuMsg("nextRoundSpeakQueue",round.getSpeakQueue()));
             }
+
+            sendInRoomPlayersMessage(room,"voteResult","3:2");
+            Set<String> voteSet=round.getVoteInfo();
+            voteSet.add("1|3");
+            voteSet.add("2|3");
+            sendInRoomPlayersMessage(room,"voteSet",round.getVoteInfo());
+            //需要返回玩家列表包括玩家状态
+            sendInRoomPlayersMessage(room,"AfterVote",round.getAlivePlayer());
+            //情况模拟
+            sendInRoomPlayersMessage(room,"spyVotedOUT",room.getPlayers());
+            sendInRoomPlayersMessage(room,"gameResult","win:civilian");
+
+            sendInRoomPlayersMessage(room,"civilianVotedOUT",room.getPlayers());
+            sendInRoomPlayersMessage(room,"gameResult","win:spy");
+
         }
     }
 
 
     /**
      * 发送给处于room中所有玩家 obj的信息
+     * 返回的信息区分head
      * @param room
      * @param obj
      */
-    private void sendInRoomPlayersMessage(Room room,Object obj) {
+    private synchronized void sendInRoomPlayersMessage(Room room,String head,Object obj) {
 
         List<GameUser> players=room.getPlayers();
         List<Integer> userList=new ArrayList<>();
@@ -261,7 +314,9 @@ public class WebSocketServer {
                 for(Integer i:userList){
                     if(entry.getKey().equals(i)){
                         //sendMessage();
-                        entry.getValue().session.getAsyncRemote().sendText(JSON.toJSONString(new CommuMsg("roomBroadcast", obj)));
+                        //可能报错：线程安全问题
+                        //java.lang.IllegalStateException: The remote endpoint was in state [TEXT_FULL_WRITING] which is an invalid state for called method
+                        entry.getValue().session.getAsyncRemote().sendText(JSON.toJSONString(new CommuMsg(head, obj)));
                     }
                 }
             }

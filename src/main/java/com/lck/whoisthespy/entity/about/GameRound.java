@@ -61,6 +61,7 @@ public class GameRound {
 
     /**
      * 玩家词汇表
+     * 对象改成string
      */
-    private  Map<GameUser,String> playerWordMap;
+    private  Map<String,String> playerWordMap;
 }
